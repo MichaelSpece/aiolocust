@@ -7,7 +7,7 @@ from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrument
 from utils import assert_search
 
 from aiolocust import otel
-from aiolocust.runner import Runner, Stage, desired_user_count
+from aiolocust.runner import BurstShape, Runner, Stage, desired_user_count
 from aiolocust.users.http import HttpUser, LocustClientSession, request_hook
 
 WINDOWS_DELAY = 1 if os.name == "nt" else 0
@@ -194,4 +194,20 @@ def test_desired_user_count():
     assert desired_user_count(stages, 9.3) == 7  # floats are nice
     assert desired_user_count(stages, 10) == 10
     assert desired_user_count(stages, 999) is None
+    assert desired_user_count([Stage(0, 100), Stage(1, 100)], 0) == 100
     assert desired_user_count([Stage(0, 100), Stage(1, 100)], 0.001) == 100  # correctly handles instant ramp up
+
+
+def test_burst_shape_spawns_every_user_immediately():
+    stages = BurstShape(users=100, duration=10).stages()
+
+    assert stages == [Stage(0, 100), Stage(10, 100)]
+    assert desired_user_count(stages, 0) == 100
+    assert desired_user_count(stages, 9.99) == 100
+    assert desired_user_count(stages, 10.01) is None
+
+
+def test_runner_accepts_burst_shape():
+    runner = Runner([], shape=BurstShape(users=100, duration=10))
+
+    assert runner.stages == [Stage(0, 100), Stage(10, 100)]

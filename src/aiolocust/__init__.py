@@ -18,7 +18,7 @@ class User(ABC):
 
 
 if TYPE_CHECKING:
-    from aiolocust.runner import Runner
+    from aiolocust.runner import BurstShape, Runner
     from aiolocust.users.http import HttpUser, LocustClientSession
 
 
@@ -36,8 +36,12 @@ def __getattr__(name):
         from aiolocust.runner import Runner
 
         return Runner
+    elif name == "BurstShape":
+        from aiolocust.runner import BurstShape
+
+        return BurstShape
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = ["User", "HttpUser", "LocustClientSession", "Runner"]
+__all__ = ["User", "HttpUser", "LocustClientSession", "Runner", "BurstShape"]

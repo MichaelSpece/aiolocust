@@ -17,6 +17,10 @@ class MyUser(HttpUser):
 
 
 if __name__ == "__main__":
+    # Use BurstShape when you want to start every user immediately and hold that load.
+    # from aiolocust import BurstShape
+    # Runner([MyUser], shape=BurstShape(users=100, duration=10)).run_test()
+
     # you can specify config via the Runner directly too:
     Runner(
         [MyUser],

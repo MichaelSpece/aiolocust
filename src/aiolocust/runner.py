@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 import warnings
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 from aiohttp import ClientOSError
@@ -67,6 +68,9 @@ def desired_user_count(stages: list[Stage], elapsed: float) -> int | None:
     total_time = 0.0
     previous_user_count = 0
     for stage in stages:
+        if stage.duration == 0:
+            previous_user_count = stage.target
+            continue
         total_time += stage.duration
         if elapsed <= total_time:
             time_left_in_stage = total_time - elapsed
@@ -76,6 +80,20 @@ def desired_user_count(stages: list[Stage], elapsed: float) -> int | None:
         previous_user_count = stage.target
 
     return None
+
+
+class Shape(ABC):
+    @abstractmethod
+    def stages(self) -> list[Stage]: ...
+
+
+class BurstShape(Shape):
+    def __init__(self, users: int, duration: float):
+        self.users = users
+        self.duration = duration
+
+    def stages(self) -> list[Stage]:
+        return [Stage(0, self.users), Stage(self.duration, self.users)]
 
 
 class LoopWorker(threading.Thread):
@@ -101,6 +119,7 @@ class Runner:
         iterations: int | None = None,
         host: str | None = None,
         config: dict | None = None,
+        shape: Shape | None = None,
         event_loops: int | None = None,
         html_report: Path | None = None,
     ):
@@ -114,7 +133,11 @@ class Runner:
         self.iteration_counter = SafeCounter(iterations)
         config = config or {}
 
-        if "stages" in config:
+        if shape:
+            self.stages = shape.stages()
+            if user_count > 1 or duration or rate or "stages" in config:
+                logger.info("Both shape and user_count/duration/rate/stages were specified, shape will take precedence")
+        elif "stages" in config:
             self.stages = [Stage(**item) for item in config["stages"]]
             if user_count > 1 or duration or rate:
                 logger.info("Both stages and user_count/duration/rate were specified, stages will take precedence")
